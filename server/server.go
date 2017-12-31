@@ -8,9 +8,10 @@ import (
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
+	"gitlab.com/medakk/zyxdb/coordinator"
 )
 
-func ListenAndServe(host string, port int) {
+func ListenAndServe(name, host string, port int) {
 	// Setup host:port to listen on
 	listenOn := fmt.Sprintf("%s:%d", host, port)
 
@@ -18,13 +19,18 @@ func ListenAndServe(host string, port int) {
 	r := mux.NewRouter()
 	r.HandleFunc("/retrieve/", RetrieveHandler)
 	r.HandleFunc("/insert/", InsertHandler)
+	r.HandleFunc("/ping/", PingHandler)
+
+	// Set up Coordinator
+	coord := coordinator.New()
+	coordRouter := coord.Middleware(r)
 
 	// Set up logging
-	loggedRoute := handlers.LoggingHandler(os.Stderr, r)
+	loggedRoute := handlers.LoggingHandler(os.Stderr, coordRouter)
 
 	// Apply routing
 	http.Handle("/", loggedRoute)
 
-	log.Printf("Starting server on %s\n", listenOn)
+	log.Printf("Starting server %s on %s\n", name, listenOn)
 	log.Fatal(http.ListenAndServe(listenOn, nil))
 }

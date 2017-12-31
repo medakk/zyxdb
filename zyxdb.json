@@ -1,0 +1,16 @@
+{
+    "nodes": [
+        {
+            "name": "zyx-1",
+            "location": "localhost:5002"
+        },
+        {
+            "name": "zyx-2",
+            "location": "localhost:5003"
+        },
+        {
+            "name": "zyx-3",
+            "location": "localhost:5004"
+        }
+    ]
+}
