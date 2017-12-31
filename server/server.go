@@ -22,7 +22,7 @@ func ListenAndServe(name, host string, port int) {
 	r.HandleFunc("/ping/", PingHandler)
 
 	// Set up Coordinator
-	coord := coordinator.New()
+	coord := coordinator.New(name, listenOn)
 	coordRouter := coord.Middleware(r)
 
 	// Set up logging

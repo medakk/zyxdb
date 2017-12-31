@@ -1,0 +1,17 @@
+version: '3'
+services:
+  zyx-1:
+    build: .
+    command: "--name zyx-1 --host 0.0.0.0 --port 5002"
+    ports:
+     - "5002:5002"
+  zyx-2:
+    build: .
+    command: "--name zyx-2 --host 0.0.0.0 --port 5003"
+    ports:
+     - "5003:5003"
+  zyx-3:
+    build: .
+    command: "--name zyx-3 --host 0.0.0.0 --port 5004"
+    ports:
+     - "5004:5004"

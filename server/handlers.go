@@ -96,7 +96,7 @@ func InsertHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func PingHandler(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusFound)
+	w.WriteHeader(http.StatusOK)
 	msg, _ := json.Marshal(map[string]string{
 		"status": "pong",
 	})

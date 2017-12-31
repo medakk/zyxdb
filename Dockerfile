@@ -8,7 +8,8 @@ RUN go get github.com/gorilla/mux
 
 RUN mkdir -p /go/src/gitlab.com/medakk/zyxdb
 ADD . /go/src/gitlab.com/medakk/zyxdb
+RUN mkdir -p /etc/zyxdb/
+RUN mv /go/src/gitlab.com/medakk/zyxdb/zyxdb.json /etc/zyxdb/
 RUN go install gitlab.com/medakk/zyxdb
 
-ENTRYPOINT ["/go/bin/zyxdb", "-host", "0.0.0.0"]
-EXPOSE 5002
+ENTRYPOINT ["/go/bin/zyxdb"]

@@ -2,15 +2,15 @@
     "nodes": [
         {
             "name": "zyx-1",
-            "location": "localhost:5002"
+            "location": "zyx-1:5002"
         },
         {
             "name": "zyx-2",
-            "location": "localhost:5003"
+            "location": "zyx-2:5003"
         },
         {
             "name": "zyx-3",
-            "location": "localhost:5004"
+            "location": "zyx-3:5004"
         }
     ]
 }
