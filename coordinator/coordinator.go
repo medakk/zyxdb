@@ -100,7 +100,7 @@ func (c *Coordinator) AllNodesOk() bool {
 
 func (c *Coordinator) Middleware(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("status: %s\n", c.AllNodesOk())
+		log.Printf("status: %v\n", c.AllNodesOk())
 		h.ServeHTTP(w, r)
 	})
 }
