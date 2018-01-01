@@ -1,0 +1,7 @@
+nodes:
+ - name: "zyx-1"
+   location: "zyx-1:5002"
+ - name: "zyx-2"
+   location: "zyx-2:5003"
+ - name: "zyx-3"
+   location: "zyx-3:5004"

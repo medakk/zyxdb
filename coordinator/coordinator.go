@@ -13,23 +13,24 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"gopkg.in/yaml.v2"
 )
 
 const (
 	// TODO: Use YAML or something more suited
-	configFilepath = "/etc/zyxdb/zyxdb.json"
+	configFilepath = "/etc/zyxdb/zyxdb.yml"
 
 	// How often to check whether or nodes are alive
 	heartbeatDuration = 15 * time.Second
 )
 
 type Node struct {
-	Name     string `json: "name"`
-	Location string `json: "location"`
+	Name     string `yaml: "name"`
+	Location string `yaml: "location"`
 }
 
 type CoordinatorConfig struct {
-	Nodes []Node `json: "nodes"`
+	Nodes []Node `yaml: "nodes"`
 }
 
 type Coordinator struct {
@@ -151,7 +152,7 @@ func loadConfig() (CoordinatorConfig, error) {
 	}
 
 	// Load the JSON
-	err = json.Unmarshal(content, &c)
+	err = yaml.Unmarshal(content, &c)
 	if err != nil {
 		return c, err
 	}
