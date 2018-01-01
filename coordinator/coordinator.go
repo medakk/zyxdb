@@ -82,7 +82,7 @@ func (c *Coordinator) Heartbeat() {
 			}
 
 			if resp.StatusCode != http.StatusOK {
-				log.Printf("error with node %s, at %s: %s\n", node.Name, node.Location)
+				log.Printf("error with node %s, at %s: status code %d\n", node.Name, node.Location, resp.StatusCode)
 				allNodesOk = false
 				continue
 			}
