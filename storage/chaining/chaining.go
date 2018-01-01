@@ -71,10 +71,10 @@ func (c *ChainingHashMap) Retrieve(key string) (string, bool) {
 	return "", false
 }
 
-func hash(s string) int32 {
-	var val int32 = 0
+func hash(s string) uint32 {
+	var val uint32 = 31
 	for pos, char := range s {
-		val = val * (1 + (int32(pos) * int32(char)))
+		val = val * (1 + (uint32(pos) * uint32(char)))
 	}
 
 	return val

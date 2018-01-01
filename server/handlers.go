@@ -5,27 +5,19 @@ import (
 	"io/ioutil"
 	"net/http"
 
+	"github.com/gorilla/mux"
 	"gitlab.com/medakk/zyxdb/storage"
 )
 
 type RetrievePost struct {
-	Key string `json: "key"`
 }
 
 type InsertPost struct {
-	Key   string `json: "key"`
 	Value string `json: "value"`
 }
 
 func RetrieveHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "POST" {
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		msg, _ := json.Marshal(map[string]string{
-			"status": "this method is not allowed",
-		})
-		w.Write(msg)
-		return
-	}
+	vars := mux.Vars(r)
 
 	b, err := ioutil.ReadAll(r.Body)
 	defer r.Body.Close()
@@ -42,7 +34,7 @@ func RetrieveHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	key := requestData.Key
+	key := vars["key"]
 	value, ok := storage.Retrieve(key)
 	if !ok {
 		w.WriteHeader(http.StatusNotFound)
@@ -61,14 +53,7 @@ func RetrieveHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func InsertHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "POST" {
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		msg, _ := json.Marshal(map[string]string{
-			"status": "this method is not allowed",
-		})
-		w.Write(msg)
-		return
-	}
+	vars := mux.Vars(r)
 
 	b, err := ioutil.ReadAll(r.Body)
 	defer r.Body.Close()
@@ -85,7 +70,8 @@ func InsertHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	key, value := requestData.Key, requestData.Value
+	key := vars["key"]
+	value := requestData.Value
 	storage.Insert(key, value)
 
 	w.WriteHeader(http.StatusCreated)

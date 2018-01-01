@@ -6,9 +6,13 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"net/http/httputil"
+	"net/url"
 	"os"
 	"sync"
 	"time"
+
+	"github.com/gorilla/mux"
 )
 
 const (
@@ -37,7 +41,7 @@ type Coordinator struct {
 	allNodesOkLock sync.RWMutex
 }
 
-// Initialize a new coordinat
+// Initialize a new coordinator
 func New(name, location string) *Coordinator {
 	config, err := loadConfig()
 	if err != nil {
@@ -77,7 +81,7 @@ func (c *Coordinator) Heartbeat() {
 			}
 
 			if resp.StatusCode != http.StatusOK {
-				log.Printf("error with node %s, at %s: %s\n", node.Name, node.Location, err.Error())
+				log.Printf("error with node %s, at %s: %s\n", node.Name, node.Location)
 				allNodesOk = false
 				continue
 			}
@@ -98,11 +102,35 @@ func (c *Coordinator) AllNodesOk() bool {
 	return c.allNodesOk
 }
 
-func (c *Coordinator) Middleware(h http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("status: %v\n", c.AllNodesOk())
+func (c *Coordinator) Middleware(h http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		// Check the state of the heartbeats
+		if !c.AllNodesOk() {
+			w.WriteHeader(http.StatusServiceUnavailable)
+			msg, _ := json.Marshal(map[string]string{
+				"status": "heartbeat failed",
+			})
+			w.Write(msg)
+		}
+
+		// Check which node should handle this
+		vars := mux.Vars(r)
+		key := vars["key"]
+		nodeCount := len(c.Config.Nodes)
+		targetNode := c.Config.Nodes[int(hash(key))%nodeCount]
+
+		// TODO: The assertion of unique names must be done before this logic
+		// can be used reliably
+		if targetNode.Name != c.SelfNode.Name {
+			targetUrl, _ := url.Parse(fmt.Sprintf("http://%s/", targetNode.Location))
+			revProxy := httputil.NewSingleHostReverseProxy(targetUrl)
+			revProxy.ServeHTTP(w, r)
+			return
+		}
+
+		// This node should handle this. Fall through
 		h.ServeHTTP(w, r)
-	})
+	}
 }
 
 func loadConfig() (CoordinatorConfig, error) {
@@ -128,4 +156,13 @@ func loadConfig() (CoordinatorConfig, error) {
 	}
 
 	return c, nil
+}
+
+func hash(s string) uint32 {
+	var val uint32 = 31
+	for pos, char := range s {
+		val = val * (1 + (uint32(pos) * uint32(char)))
+	}
+
+	return val
 }

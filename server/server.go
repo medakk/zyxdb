@@ -15,18 +15,17 @@ func ListenAndServe(name, host string, port int) {
 	// Setup host:port to listen on
 	listenOn := fmt.Sprintf("%s:%d", host, port)
 
-	// Set up routing
-	r := mux.NewRouter()
-	r.HandleFunc("/retrieve/", RetrieveHandler)
-	r.HandleFunc("/insert/", InsertHandler)
-	r.HandleFunc("/ping/", PingHandler)
-
 	// Set up Coordinator
 	coord := coordinator.New(name, listenOn)
-	coordRouter := coord.Middleware(r)
+
+	// Set up routing
+	r := mux.NewRouter()
+	r.HandleFunc("/ping/", PingHandler).Methods("GET")
+	r.HandleFunc("/retrieve/{key}/", coord.Middleware(RetrieveHandler)).Methods("POST")
+	r.HandleFunc("/insert/{key}/", coord.Middleware(InsertHandler)).Methods("POST")
 
 	// Set up logging
-	loggedRoute := handlers.LoggingHandler(os.Stderr, coordRouter)
+	loggedRoute := handlers.LoggingHandler(os.Stderr, r)
 
 	// Apply routing
 	http.Handle("/", loggedRoute)
