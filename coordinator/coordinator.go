@@ -111,6 +111,7 @@ func (c *Coordinator) Middleware(h http.HandlerFunc) http.HandlerFunc {
 				"status": "heartbeat failed",
 			})
 			w.Write(msg)
+			return
 		}
 
 		// Check which node should handle this
