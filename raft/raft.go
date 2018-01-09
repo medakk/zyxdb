@@ -109,9 +109,6 @@ func (c *RaftCtx) AppendEntries(request AppendEntriesRequest) AppendEntriesRespo
 	atomic.AddUint64(&c.heartbeat, 1)
 
 	response := AppendEntriesResponse{}
-	if c.state == STATE_CANDIDATE {
-		return response
-	}
 
 	if request.Term < c.currentTerm {
 		log.Printf("False leader: %d", request.LeaderId)
@@ -121,7 +118,7 @@ func (c *RaftCtx) AppendEntries(request AppendEntriesRequest) AppendEntriesRespo
 		c.votedFor = NOT_VOTED
 
 		// Turns out there is a new leader, and its not me.
-		if c.state == STATE_LEADER {
+		if c.state != STATE_FOLLOWER {
 			c.state = STATE_FOLLOWER
 		}
 	}
@@ -176,8 +173,10 @@ func (c *RaftCtx) startElectionTimeoutCheck() {
 func (c *RaftCtx) startLeaderHeartbeats() {
 	go func() {
 		for {
+			// Wait for heartbeat interval
 			time.Sleep(heartbeatInterval)
 
+			// TODO: Avoid this somehow
 			if c.state != STATE_LEADER {
 				continue
 			}
