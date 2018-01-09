@@ -15,3 +15,8 @@ services:
     command: "--name zyx-3 --host 0.0.0.0 --port 5004"
     ports:
      - "5004:5004"
+  zyx-4:
+    build: .
+    command: "--name zyx-4 --host 0.0.0.0 --port 5005"
+    ports:
+     - "5005:5005"

@@ -8,3 +8,6 @@ nodes:
  - id: 3
    name: "zyx-3"
    location: "zyx-3:5004"
+ - id: 4
+   name: "zyx-4"
+   location: "zyx-4:5005"
