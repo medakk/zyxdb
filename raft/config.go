@@ -9,12 +9,6 @@ import (
 	yaml "gopkg.in/yaml.v2"
 )
 
-type Node struct {
-	Id       int    `yaml: "id"`
-	Name     string `yaml: "name"`
-	Location string `yaml: "location"`
-}
-
 type ZyxdbConfig struct {
 	Nodes []Node `yaml: "nodes"`
 }
@@ -31,14 +25,6 @@ func (c *ZyxdbConfig) getNodeByName(name string) Node {
 
 func (c *ZyxdbConfig) nodeCount() int {
 	return len(c.Nodes)
-}
-
-func (node *Node) sendRequestvote(RequestVoteRequest) (RequestVoteResponse, error) {
-	return RequestVoteResponse{}, nil
-}
-
-func (node *Node) sendAppendEntries(request AppendEntriesRequest) (AppendEntriesResponse, error) {
-	return AppendEntriesResponse{}, nil
 }
 
 func loadConfig() (ZyxdbConfig, error) {

@@ -30,6 +30,8 @@ func AppendEntriesHandler(w http.ResponseWriter, r *http.Request, raftCtx *raft.
 	if err != nil {
 		panic(fmt.Sprintf("Failed to marshall raft response: %v", resp))
 	}
+
+	w.WriteHeader(http.StatusOK)
 	w.Write(jsonResp)
 }
 
@@ -54,14 +56,17 @@ func RequestVoteHandler(w http.ResponseWriter, r *http.Request, raftCtx *raft.Ra
 	if err != nil {
 		panic(fmt.Sprintf("Failed to marshall raft response: %v", resp))
 	}
+
+	w.WriteHeader(http.StatusOK)
 	w.Write(jsonResp)
 
 }
 
 func PingHandler(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusOK)
 	msg, _ := json.Marshal(map[string]string{
 		"ping": "pong",
 	})
+
+	w.WriteHeader(http.StatusOK)
 	w.Write(msg)
 }

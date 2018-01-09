@@ -1,6 +1,7 @@
 package raft
 
 import (
+	"log"
 	"math/rand"
 	"net/http"
 	"sync/atomic"
@@ -9,11 +10,11 @@ import (
 
 const (
 	// base time in ms, actual timeout could +/- the sway amount
-	electionTimeout     = 100
-	electionTimeoutSway = 20
+	electionTimeout     = 1000
+	electionTimeoutSway = 200
 
 	// Leader sends empty AppendEntries request every time the interval of time passes
-	heartbeatInterval = 10 * time.Millisecond
+	heartbeatInterval = 200 * time.Millisecond
 )
 
 type RaftNodeState int
@@ -22,6 +23,10 @@ const (
 	STATE_LEADER RaftNodeState = iota
 	STATE_CANDIDATE
 	STATE_FOLLOWER
+)
+
+const (
+	NOT_VOTED = -1
 )
 
 var (
@@ -82,12 +87,14 @@ func New(name string) *RaftCtx {
 
 	c := RaftCtx{
 		currentTerm: 1,
+		votedFor:    NOT_VOTED,
 		selfNode:    zyxdbConfig.getNodeByName(name),
 		state:       STATE_FOLLOWER,
 		config:      zyxdbConfig,
 	}
 
 	c.startElectionTimeoutCheck()
+	c.startLeaderHeartbeats()
 
 	return &c
 }
@@ -102,11 +109,44 @@ func (c *RaftCtx) AppendEntries(request AppendEntriesRequest) AppendEntriesRespo
 	atomic.AddUint64(&c.heartbeat, 1)
 
 	response := AppendEntriesResponse{}
+	if c.state == STATE_CANDIDATE {
+		return response
+	}
+
+	if request.Term < c.currentTerm {
+		log.Printf("False leader: %d", request.LeaderId)
+	} else {
+		log.Printf("%d is leader", request.LeaderId)
+		c.currentTerm = request.Term
+		c.votedFor = NOT_VOTED
+
+		// Turns out there is a new leader, and its not me.
+		if c.state == STATE_LEADER {
+			c.state = STATE_FOLLOWER
+		}
+	}
+
 	return response
 }
 
 func (c *RaftCtx) RequestVote(request RequestVoteRequest) RequestVoteResponse {
-	response := RequestVoteResponse{}
+	log.Printf("someone wants a vote: %v\n", request)
+
+	response := RequestVoteResponse{
+		Term:        c.currentTerm,
+		VoteGranted: false,
+	}
+
+	if c.state == STATE_CANDIDATE {
+		return response
+	}
+
+	if request.Term > c.currentTerm {
+		response.VoteGranted = true
+		response.Term = request.Term
+		c.votedFor = request.CandidateId
+	}
+
 	return response
 }
 
@@ -117,8 +157,8 @@ func (c *RaftCtx) startElectionTimeoutCheck() {
 			time.Sleep(electionTimeoutDuration())
 
 			//TODO: Do something better here
-			// Skip if leader
-			if c.state == STATE_LEADER {
+			// Skip if not follower
+			if c.state != STATE_FOLLOWER {
 				continue
 			}
 
@@ -129,6 +169,31 @@ func (c *RaftCtx) startElectionTimeoutCheck() {
 
 			// Reset to 0
 			atomic.StoreUint64(&c.heartbeat, 0)
+		}
+	}()
+}
+
+func (c *RaftCtx) startLeaderHeartbeats() {
+	go func() {
+		for {
+			time.Sleep(heartbeatInterval)
+
+			if c.state != STATE_LEADER {
+				continue
+			}
+
+			request := AppendEntriesRequest{
+				LeaderId: c.selfNode.Id,
+				Term:     c.currentTerm,
+			}
+
+			//TODO: send heartbeats to everyone
+			log.Printf("Sending heartbeats")
+			for _, node := range c.config.Nodes {
+				if node.Id != c.selfNode.Id {
+					node.sendAppendEntries(request)
+				}
+			}
 		}
 	}()
 }
@@ -157,6 +222,7 @@ func (c *RaftCtx) attemptLeadership() {
 
 		response, err := node.sendRequestvote(request)
 		if err != nil {
+			log.Printf("Error while sending request-vote to %v: %v\n", node, err)
 			continue
 		}
 
@@ -167,6 +233,7 @@ func (c *RaftCtx) attemptLeadership() {
 
 	if totalVotes >= requiredVotes {
 		c.state = STATE_LEADER
+		log.Printf("I am leader now.")
 	} else {
 		c.state = STATE_FOLLOWER
 	}
