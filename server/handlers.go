@@ -2,48 +2,14 @@ package server
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 
-	"github.com/gorilla/mux"
 	"gitlab.com/medakk/zyxdb/raft"
-	"gitlab.com/medakk/zyxdb/storage"
 )
 
-type AppendEntriesPost struct {
-	Term         int      `json: "term"`
-	LeaderId     int      `json: "leader_id"`
-	PrevLogIndex int      `json: "prev_log_index"`
-	PrevLogTerm  int      `json: "prev_log_term"`
-	Entries      []string `json: "entries"`
-	LeaderCommit int      `json: "leader_commit"`
-}
-
-type RequestVotePost struct {
-	Term         int `json: "term"`
-	CandidateId  int `json: "candidate_id"`
-	LastLogIndex int `json: "last_log_index"`
-	LastLogTerm  int `json: "last_log_term"`
-}
-
-type RetrievePost struct {
-}
-
-type InsertPost struct {
-	Value string `json: "value"`
-}
-
-func AppendEntriesHandler(w http.ResponseWriter, r *http.Request, c *raft.RaftState) {
-
-}
-
-func RequestVoteHandler(w http.ResponseWriter, r *http.Request, c *raft.RaftState) {
-
-}
-
-func RetrieveHandler(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-
+func AppendEntriesHandler(w http.ResponseWriter, r *http.Request, raftCtx *raft.RaftCtx) {
 	b, err := ioutil.ReadAll(r.Body)
 	defer r.Body.Close()
 	if err != nil {
@@ -52,34 +18,22 @@ func RetrieveHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	requestData := RetrievePost{}
+	requestData := raft.AppendEntriesRequest{}
 	err = json.Unmarshal(b, &requestData)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	key := vars["key"]
-	value, ok := storage.Retrieve(key)
-	if !ok {
-		w.WriteHeader(http.StatusNotFound)
-		msg, _ := json.Marshal(map[string]string{
-			key: "no value found",
-		})
-		w.Write(msg)
-		return
+	resp := raftCtx.AppendEntries(requestData)
+	jsonResp, err := json.Marshal(resp)
+	if err != nil {
+		panic(fmt.Sprintf("Failed to marshall raft response: %v", resp))
 	}
-
-	w.WriteHeader(http.StatusFound)
-	msg, _ := json.Marshal(map[string]string{
-		key: value,
-	})
-	w.Write(msg)
+	w.Write(jsonResp)
 }
 
-func InsertHandler(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-
+func RequestVoteHandler(w http.ResponseWriter, r *http.Request, raftCtx *raft.RaftCtx) {
 	b, err := ioutil.ReadAll(r.Body)
 	defer r.Body.Close()
 	if err != nil {
@@ -88,28 +42,26 @@ func InsertHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	requestData := InsertPost{}
+	requestData := raft.RequestVoteRequest{}
 	err = json.Unmarshal(b, &requestData)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	key := vars["key"]
-	value := requestData.Value
-	storage.Insert(key, value)
+	resp := raftCtx.RequestVote(requestData)
+	jsonResp, err := json.Marshal(resp)
+	if err != nil {
+		panic(fmt.Sprintf("Failed to marshall raft response: %v", resp))
+	}
+	w.Write(jsonResp)
 
-	w.WriteHeader(http.StatusCreated)
-	msg, _ := json.Marshal(map[string]string{
-		key: value,
-	})
-	w.Write(msg)
 }
 
 func PingHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	msg, _ := json.Marshal(map[string]string{
-		"status": "pong",
+		"ping": "pong",
 	})
 	w.Write(msg)
 }
