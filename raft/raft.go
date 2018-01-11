@@ -93,8 +93,7 @@ func New(name string) *RaftCtx {
 		config:      zyxdbConfig,
 	}
 
-	c.startElectionTimeoutCheck()
-	c.startLeaderHeartbeats()
+	go c.runTickerEvents()
 
 	return &c
 }
@@ -147,12 +146,15 @@ func (c *RaftCtx) RequestVote(request RequestVoteRequest) RequestVoteResponse {
 	return response
 }
 
-func (c *RaftCtx) startElectionTimeoutCheck() {
-	go func() {
-		for {
-			// Wait for timeout
-			time.Sleep(electionTimeoutDuration())
+// runTickerEvents starts running time based events: the election timeout and
+// the heartbeat
+func (c *RaftCtx) runTickerEvents() {
+	tickerElectionTimeout := time.NewTicker(electionTimeoutDuration())
+	tickerHeartbeat := time.NewTicker(heartbeatInterval)
 
+	for {
+		select {
+		case <-tickerElectionTimeout.C:
 			//TODO: Do something better here
 			// Skip if not follower
 			if c.state != STATE_FOLLOWER {
@@ -166,16 +168,8 @@ func (c *RaftCtx) startElectionTimeoutCheck() {
 
 			// Reset to 0
 			atomic.StoreUint64(&c.heartbeat, 0)
-		}
-	}()
-}
 
-func (c *RaftCtx) startLeaderHeartbeats() {
-	go func() {
-		for {
-			// Wait for heartbeat interval
-			time.Sleep(heartbeatInterval)
-
+		case <-tickerHeartbeat.C:
 			// TODO: Avoid this somehow
 			if c.state != STATE_LEADER {
 				continue
@@ -193,8 +187,9 @@ func (c *RaftCtx) startLeaderHeartbeats() {
 					node.sendAppendEntries(request)
 				}
 			}
+
 		}
-	}()
+	}
 }
 
 func (c *RaftCtx) attemptLeadership() {
