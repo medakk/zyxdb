@@ -1,6 +1,3 @@
 # zyxdb
 
-A distributed key value store
-
-## Bugs:
-* Something horribly broken. Insert for key "fire" and try to retrieve it
+A distributed key value store, based on raft consensus
