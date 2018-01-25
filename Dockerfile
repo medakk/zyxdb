@@ -6,8 +6,8 @@ RUN apk update && apk add git
 RUN go get github.com/gorilla/handlers github.com/gorilla/mux gopkg.in/yaml.v2
 
 RUN mkdir -p /go/src/gitlab.com/medakk/zyxdb
-ADD . /go/src/gitlab.com/medakk/zyxdb
 RUN mkdir -p /etc/zyxdb/
+ADD . /go/src/gitlab.com/medakk/zyxdb
 RUN mv /go/src/gitlab.com/medakk/zyxdb/zyxdb.yml /etc/zyxdb/
 RUN go install gitlab.com/medakk/zyxdb
 
