@@ -3,16 +3,15 @@ package raft
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 )
 
 type Node struct {
-	Id       int    `yaml: "id"`
-	Name     string `yaml: "name"`
-	Location string `yaml: "location"`
+	Id       int    `yaml:"id"`
+	Name     string `yaml:"name"`
+	Location string `yaml:"location"`
 }
 
 func (node *Node) sendRequestvote(request RequestVoteRequest) (RequestVoteResponse, error) {
@@ -26,6 +25,11 @@ func (node *Node) sendRequestvote(request RequestVoteRequest) (RequestVoteRespon
 	url := fmt.Sprintf("http://%s/request-vote/", node.Location)
 	httpResponse, err := http.Post(url, "application/json", bytes.NewReader(requestBody))
 	if err != nil {
+		return response, err
+	}
+
+	if httpResponse.StatusCode != http.StatusOK {
+		err = fmt.Errorf("Bad status code: %d", httpResponse.StatusCode)
 		return response, err
 	}
 
@@ -57,12 +61,7 @@ func (node *Node) sendAppendEntries(request AppendEntriesRequest) (AppendEntries
 	}
 
 	if httpResponse.StatusCode != http.StatusOK {
-		err = errors.New(fmt.Sprintf("Bad status code: %d", httpResponse.StatusCode))
-		return response, err
-	}
-
-	if httpResponse.StatusCode != http.StatusOK {
-		err = errors.New(fmt.Sprintf("Bad status code: %d", httpResponse.StatusCode))
+		err = fmt.Errorf("Bad status code: %d", httpResponse.StatusCode)
 		return response, err
 	}
 

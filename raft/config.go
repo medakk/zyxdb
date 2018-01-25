@@ -1,7 +1,6 @@
 package raft
 
 import (
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -10,7 +9,7 @@ import (
 )
 
 type ZyxdbConfig struct {
-	Nodes []Node `yaml: "nodes"`
+	Nodes []Node `yaml:"nodes"`
 }
 
 func (c *ZyxdbConfig) getNodeByName(name string) Node {
@@ -30,7 +29,7 @@ func (c *ZyxdbConfig) nodeCount() int {
 func loadConfig() (ZyxdbConfig, error) {
 	c := ZyxdbConfig{}
 
-	var f *os.File = nil
+	var f *os.File
 	// Open the config file
 	for _, filepath := range configFilepaths {
 		if _, err := os.Stat(filepath); os.IsNotExist(err) {
@@ -47,7 +46,7 @@ func loadConfig() (ZyxdbConfig, error) {
 	}
 
 	if f == nil {
-		err := errors.New(fmt.Sprintf("No config file found. Tried: %v\n", configFilepaths))
+		err := fmt.Errorf("no config file found. Tried: %v", configFilepaths)
 		return c, err
 	}
 

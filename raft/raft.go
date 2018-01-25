@@ -56,27 +56,27 @@ type RaftCtx struct {
 }
 
 type AppendEntriesRequest struct {
-	Term         int      `json: "term"`
-	LeaderId     int      `json: "leader_id"`
-	PrevLogIndex int      `json: "prev_log_index"`
-	PrevLogTerm  int      `json: "prev_log_term"`
-	Entries      []string `json: "entries"`
-	LeaderCommit int      `json: "leader_commit"`
+	Term         int      `json:"term"`
+	LeaderId     int      `json:"leader_id"`
+	PrevLogIndex int      `json:"prev_log_index"`
+	PrevLogTerm  int      `json:"prev_log_term"`
+	Entries      []string `json:"entries"`
+	LeaderCommit int      `json:"leader_commit"`
 }
 
 type AppendEntriesResponse struct {
 }
 
 type RequestVoteRequest struct {
-	Term         int `json: "term"`
-	CandidateId  int `json: "candidate_id"`
-	LastLogIndex int `json: "last_log_index"`
-	LastLogTerm  int `json: "last_log_term"`
+	Term         int `json:"term"`
+	CandidateId  int `json:"candidate_id"`
+	LastLogIndex int `json:"last_log_index"`
+	LastLogTerm  int `json:"last_log_term"`
 }
 
 type RequestVoteResponse struct {
-	Term        int  `json: "term"`
-	VoteGranted bool `json: "vote_granted"`
+	Term        int  `json:"term"`
+	VoteGranted bool `json:"vote_granted"`
 }
 
 func New(name string) *RaftCtx {
