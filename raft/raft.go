@@ -180,7 +180,6 @@ func (c *RaftCtx) runTickerEvents() {
 				Term:     c.currentTerm,
 			}
 
-			//TODO: send heartbeats to everyone
 			log.Printf("Sending heartbeats")
 			for _, node := range c.config.Nodes {
 				if node.Id != c.selfNode.Id {
