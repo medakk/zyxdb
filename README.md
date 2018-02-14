@@ -1,3 +1,3 @@
 # zyxdb
 
-A distributed key value store, based on raft consensus
+A WIP distributed key value store, based on raft consensus
