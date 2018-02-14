@@ -26,6 +26,7 @@ const (
 )
 
 const (
+	// Flag to indicate that the node has not voted in this term
 	NotVoted = -1
 )
 
