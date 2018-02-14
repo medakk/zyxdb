@@ -110,6 +110,7 @@ func (c *RaftCtx) AppendEntries(request AppendEntriesRequest) AppendEntriesRespo
 
 	response := AppendEntriesResponse{}
 
+	//TODO: Check for LastLogIndex
 	if request.Term < c.currentTerm {
 		log.Printf("False leader: %d", request.LeaderId)
 	} else {
