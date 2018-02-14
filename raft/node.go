@@ -6,6 +6,11 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"time"
+)
+
+const (
+	timeout = 50 * time.Millisecond
 )
 
 type Node struct {
@@ -23,7 +28,10 @@ func (node *Node) sendRequestvote(request RequestVoteRequest) (RequestVoteRespon
 	}
 
 	url := fmt.Sprintf("http://%s/request-vote/", node.Location)
-	httpResponse, err := http.Post(url, "application/json", bytes.NewReader(requestBody))
+	httpClient := http.Client{
+		Timeout: timeout,
+	}
+	httpResponse, err := httpClient.Post(url, "application/json", bytes.NewReader(requestBody))
 	if err != nil {
 		return response, err
 	}
@@ -55,7 +63,10 @@ func (node *Node) sendAppendEntries(request AppendEntriesRequest) (AppendEntries
 	}
 
 	url := fmt.Sprintf("http://%s/append-entries/", node.Location)
-	httpResponse, err := http.Post(url, "application/json", bytes.NewReader(requestBody))
+	httpClient := http.Client{
+		Timeout: timeout,
+	}
+	httpResponse, err := httpClient.Post(url, "application/json", bytes.NewReader(requestBody))
 	if err != nil {
 		return response, err
 	}

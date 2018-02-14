@@ -11,22 +11,22 @@ import (
 const (
 	// base time in ms, actual timeout could +/- the sway amount
 	electionTimeout     = 1000
-	electionTimeoutSway = 200
+	electionTimeoutSway = 800
 
 	// Leader sends empty AppendEntries request every time the interval of time passes
 	heartbeatInterval = 200 * time.Millisecond
 )
 
-type RaftNodeState int
+type NodeState int
 
 const (
-	STATE_LEADER RaftNodeState = iota
-	STATE_CANDIDATE
-	STATE_FOLLOWER
+	StateLeader NodeState = iota
+	StateCandidate
+	StateFollower
 )
 
 const (
-	NOT_VOTED = -1
+	NotVoted = -1
 )
 
 var (
@@ -40,7 +40,7 @@ type RaftCtx struct {
 	selfNode Node
 
 	// State of the node
-	state RaftNodeState
+	state NodeState
 
 	// persistent state
 	currentTerm int
@@ -87,9 +87,9 @@ func New(name string) *RaftCtx {
 
 	c := RaftCtx{
 		currentTerm: 1,
-		votedFor:    NOT_VOTED,
+		votedFor:    NotVoted,
 		selfNode:    zyxdbConfig.getNodeByName(name),
-		state:       STATE_FOLLOWER,
+		state:       StateFollower,
 		config:      zyxdbConfig,
 	}
 
@@ -114,11 +114,11 @@ func (c *RaftCtx) AppendEntries(request AppendEntriesRequest) AppendEntriesRespo
 	} else {
 		log.Printf("%d is leader", request.LeaderId)
 		c.currentTerm = request.Term
-		c.votedFor = NOT_VOTED
+		c.votedFor = NotVoted
 
 		// Turns out there is a new leader, and its not me.
-		if c.state != STATE_FOLLOWER {
-			c.state = STATE_FOLLOWER
+		if c.state != StateFollower {
+			c.state = StateFollower
 		}
 	}
 
@@ -133,11 +133,13 @@ func (c *RaftCtx) RequestVote(request RequestVoteRequest) RequestVoteResponse {
 		VoteGranted: false,
 	}
 
-	if c.state == STATE_CANDIDATE {
+	if c.state == StateCandidate {
+		log.Printf("Won't vote for %d\n", request.CandidateId)
 		return response
 	}
 
 	if request.Term > c.currentTerm {
+		log.Printf("OK, I vote for %d\n", request.CandidateId)
 		response.VoteGranted = true
 		response.Term = request.Term
 		c.votedFor = request.CandidateId
@@ -157,7 +159,7 @@ func (c *RaftCtx) runTickerEvents() {
 		case <-tickerElectionTimeout.C:
 			//TODO: Do something better here
 			// Skip if not follower
-			if c.state != STATE_FOLLOWER {
+			if c.state != StateFollower {
 				continue
 			}
 
@@ -171,7 +173,7 @@ func (c *RaftCtx) runTickerEvents() {
 
 		case <-tickerHeartbeat.C:
 			// TODO: Avoid this somehow
-			if c.state != STATE_LEADER {
+			if c.state != StateLeader {
 				continue
 			}
 
@@ -183,7 +185,11 @@ func (c *RaftCtx) runTickerEvents() {
 			log.Printf("Sending heartbeats")
 			for _, node := range c.config.Nodes {
 				if node.Id != c.selfNode.Id {
-					node.sendAppendEntries(request)
+					_, err := node.sendAppendEntries(request)
+					if err != nil {
+						log.Printf("Error while sending append-entries to %v: %v\n", node, err)
+						continue
+					}
 				}
 			}
 
@@ -192,12 +198,12 @@ func (c *RaftCtx) runTickerEvents() {
 }
 
 func (c *RaftCtx) attemptLeadership() {
-	c.state = STATE_CANDIDATE
+	c.state = StateCandidate
 
-	c.currentTerm++                             // Increment term
-	c.votedFor = c.selfNode.Id                  // Vote for self
-	totalVotes := 1                             // Keep tally of total votes
-	requiredVotes := c.config.nodeCount()/2 + 1 // Majority required
+	c.currentTerm++                           // Increment term
+	c.votedFor = c.selfNode.Id                // Vote for self
+	totalVotes := 1                           // Keep tally of total votes
+	requiredVotes := c.config.nodeCount() / 2 // Majority required
 
 	request := RequestVoteRequest{
 		Term:        c.currentTerm,
@@ -225,10 +231,10 @@ func (c *RaftCtx) attemptLeadership() {
 	}
 
 	if totalVotes >= requiredVotes {
-		c.state = STATE_LEADER
+		c.state = StateLeader
 		log.Printf("I am leader now.")
 	} else {
-		c.state = STATE_FOLLOWER
+		c.state = StateFollower
 	}
 }
 
