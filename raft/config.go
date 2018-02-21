@@ -22,6 +22,16 @@ func (c *ZyxdbConfig) getNodeByName(name string) Node {
 	panic(fmt.Sprintf("No node with name %s in config", name))
 }
 
+func (c *ZyxdbConfig) getNodeById(id int) Node {
+	for _, node := range c.Nodes {
+		if node.Id == id {
+			return node
+		}
+	}
+
+	panic(fmt.Sprintf("No node with id %d in config", id))
+}
+
 func (c *ZyxdbConfig) nodeCount() int {
 	return len(c.Nodes)
 }

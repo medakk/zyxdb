@@ -36,6 +36,11 @@ var (
 	configFilepaths = []string{"./zyxdb.yml", "/etc/zyxdb/zyxdb.yml"}
 )
 
+type Log struct {
+	term    int
+	command string
+}
+
 type RaftCtx struct {
 	// Node details
 	selfNode Node
@@ -46,7 +51,18 @@ type RaftCtx struct {
 	// persistent state
 	currentTerm int
 	votedFor    int
-	log         []string
+	log         []Log
+
+	// volatile state on all servers
+	commitIndex int
+	lastApplied int
+
+	// volatile state on leader
+	nextIndex  []int
+	matchIndex []int
+
+	// keep track of who the current leader is
+	currentLeaderId int
 
 	// configuration where the list of nodes is stored
 	config ZyxdbConfig
@@ -122,6 +138,7 @@ func (c *RaftCtx) AppendEntries(request AppendEntriesRequest) AppendEntriesRespo
 		if c.state != StateFollower {
 			c.state = StateFollower
 		}
+		c.currentLeaderId = request.LeaderId
 	}
 
 	return response
@@ -148,6 +165,14 @@ func (c *RaftCtx) RequestVote(request RequestVoteRequest) RequestVoteResponse {
 	}
 
 	return response
+}
+
+func (c *RaftCtx) State() NodeState {
+	return c.state
+}
+
+func (c *RaftCtx) GetLeader() Node {
+	return c.config.Nodes[c.currentLeaderId]
 }
 
 // runTickerEvents starts running time based events: the election timeout and

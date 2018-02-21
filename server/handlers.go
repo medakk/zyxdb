@@ -70,3 +70,20 @@ func PingHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	w.Write(msg)
 }
+
+func InsertToLogHandler(w http.ResponseWriter, r *http.Request, raftCtx *raft.RaftCtx) {
+	if raftCtx.State() == raft.StateFollower {
+		leaderLocation := raftCtx.GetLeader().Location
+		http.Redirect(w, r, leaderLocation+"/insert/", 301)
+		return
+	}
+
+	msg := map[string]string{
+		"msg": "Ok",
+	}
+	b, err := json.Marshal(msg)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+	w.Write(b)
+}
