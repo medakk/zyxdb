@@ -14,8 +14,6 @@ const (
 )
 
 type Node struct {
-	Id       int    `yaml:"id"`
-	Name     string `yaml:"name"`
 	Location string `yaml:"location"`
 }
 

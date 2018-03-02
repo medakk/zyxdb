@@ -1,13 +1,9 @@
 nodes:
- - id: 1
-   name: "zyx-1"
+ zyx-1:
    location: "zyx-1:5001"
- - id: 2
-   name: "zyx-2"
+ zyx-2:
    location: "zyx-2:5002"
- - id: 3
-   name: "zyx-3"
+ zyx-3:
    location: "zyx-3:5003"
- - id: 4
-   name: "zyx-4"
+ zyx-4:
    location: "zyx-4:5004"

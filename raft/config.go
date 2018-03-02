@@ -9,27 +9,16 @@ import (
 )
 
 type ZyxdbConfig struct {
-	Nodes []Node `yaml:"nodes"`
+	Nodes map[string]Node `yaml:"nodes"`
 }
 
-func (c *ZyxdbConfig) getNodeByName(name string) Node {
-	for _, node := range c.Nodes {
-		if node.Name == name {
-			return node
-		}
+func (c *ZyxdbConfig) getNodeByName(name string) *Node {
+	node, ok := c.Nodes[name]
+	if !ok {
+		panic(fmt.Sprintf("No node with name %s in config", name))
 	}
 
-	panic(fmt.Sprintf("No node with name %s in config", name))
-}
-
-func (c *ZyxdbConfig) getNodeById(id int) Node {
-	for _, node := range c.Nodes {
-		if node.Id == id {
-			return node
-		}
-	}
-
-	panic(fmt.Sprintf("No node with id %d in config", id))
+	return &node
 }
 
 func (c *ZyxdbConfig) nodeCount() int {

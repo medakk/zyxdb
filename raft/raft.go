@@ -25,11 +25,6 @@ const (
 	StateFollower
 )
 
-const (
-	// Flag to indicate that the node has not voted in this term
-	NotVoted = -1
-)
-
 var (
 	// tries reading configs in this order, with the first one that is present
 	// being used
@@ -43,14 +38,15 @@ type Log struct {
 
 type RaftCtx struct {
 	// Node details
-	selfNode Node
+	name     string
+	selfNode *Node
 
 	// State of the node
 	state NodeState
 
 	// persistent state
 	currentTerm int
-	votedFor    int
+	votedFor    *Node
 	log         []Log
 
 	// volatile state on all servers
@@ -62,7 +58,7 @@ type RaftCtx struct {
 	matchIndex []int
 
 	// keep track of who the current leader is
-	currentLeaderId int
+	currentLeader *Node
 
 	// configuration where the list of nodes is stored
 	config ZyxdbConfig
@@ -74,7 +70,7 @@ type RaftCtx struct {
 
 type AppendEntriesRequest struct {
 	Term         int      `json:"term"`
-	LeaderId     int      `json:"leader_id"`
+	LeaderName   string   `json:"leader"`
 	PrevLogIndex int      `json:"prev_log_index"`
 	PrevLogTerm  int      `json:"prev_log_term"`
 	Entries      []string `json:"entries"`
@@ -85,10 +81,10 @@ type AppendEntriesResponse struct {
 }
 
 type RequestVoteRequest struct {
-	Term         int `json:"term"`
-	CandidateId  int `json:"candidate_id"`
-	LastLogIndex int `json:"last_log_index"`
-	LastLogTerm  int `json:"last_log_term"`
+	Term          int    `json:"term"`
+	CandidateName string `json:"candidate"`
+	LastLogIndex  int    `json:"last_log_index"`
+	LastLogTerm   int    `json:"last_log_term"`
 }
 
 type RequestVoteResponse struct {
@@ -104,7 +100,8 @@ func New(name string) *RaftCtx {
 
 	c := RaftCtx{
 		currentTerm: 1,
-		votedFor:    NotVoted,
+		votedFor:    nil,
+		name:        name,
 		selfNode:    zyxdbConfig.getNodeByName(name),
 		state:       StateFollower,
 		config:      zyxdbConfig,
@@ -128,17 +125,17 @@ func (c *RaftCtx) AppendEntries(request AppendEntriesRequest) AppendEntriesRespo
 
 	//TODO: Check for LastLogIndex
 	if request.Term < c.currentTerm {
-		log.Printf("False leader: %d", request.LeaderId)
+		log.Printf("False leader: %v", request.LeaderName)
 	} else {
-		log.Printf("%d is leader", request.LeaderId)
+		log.Printf("%v is leader", request.LeaderName)
 		c.currentTerm = request.Term
-		c.votedFor = NotVoted
+		c.votedFor = nil
 
 		// Turns out there is a new leader, and its not me.
 		if c.state != StateFollower {
 			c.state = StateFollower
 		}
-		c.currentLeaderId = request.LeaderId
+		c.currentLeader = c.config.getNodeByName(request.LeaderName)
 	}
 
 	return response
@@ -153,15 +150,15 @@ func (c *RaftCtx) RequestVote(request RequestVoteRequest) RequestVoteResponse {
 	}
 
 	if c.state == StateCandidate {
-		log.Printf("Won't vote for %d\n", request.CandidateId)
+		log.Printf("Won't vote for %v\n", request.CandidateName)
 		return response
 	}
 
 	if request.Term > c.currentTerm {
-		log.Printf("OK, I vote for %d\n", request.CandidateId)
+		log.Printf("OK, I vote for %v\n", request.CandidateName)
 		response.VoteGranted = true
 		response.Term = request.Term
-		c.votedFor = request.CandidateId
+		c.votedFor = c.config.getNodeByName(request.CandidateName)
 	}
 
 	return response
@@ -171,8 +168,8 @@ func (c *RaftCtx) State() NodeState {
 	return c.state
 }
 
-func (c *RaftCtx) GetLeader() Node {
-	return c.config.Nodes[c.currentLeaderId]
+func (c *RaftCtx) GetLeader() *Node {
+	return c.currentLeader
 }
 
 // runTickerEvents starts running time based events: the election timeout and
@@ -205,13 +202,13 @@ func (c *RaftCtx) runTickerEvents() {
 			}
 
 			request := AppendEntriesRequest{
-				LeaderId: c.selfNode.Id,
-				Term:     c.currentTerm,
+				LeaderName: c.name,
+				Term:       c.currentTerm,
 			}
 
 			log.Printf("Sending heartbeats")
-			for _, node := range c.config.Nodes {
-				if node.Id != c.selfNode.Id {
+			for name, node := range c.config.Nodes {
+				if name != c.name {
 					_, err := node.sendAppendEntries(request)
 					if err != nil {
 						log.Printf("Error while sending append-entries to %v: %v\n", node, err)
@@ -228,21 +225,21 @@ func (c *RaftCtx) attemptLeadership() {
 	c.state = StateCandidate
 
 	c.currentTerm++                           // Increment term
-	c.votedFor = c.selfNode.Id                // Vote for self
+	c.votedFor = c.selfNode                   // Vote for self
 	totalVotes := 1                           // Keep tally of total votes
 	requiredVotes := c.config.nodeCount() / 2 // Majority required
 
 	request := RequestVoteRequest{
-		Term:        c.currentTerm,
-		CandidateId: c.selfNode.Id,
+		Term:          c.currentTerm,
+		CandidateName: c.name,
 		// TODO: Add these:
 		LastLogIndex: 0,
 		LastLogTerm:  0,
 	}
 
-	for _, node := range c.config.Nodes {
+	for name, node := range c.config.Nodes {
 		// Don't send to self
-		if node.Id == c.selfNode.Id {
+		if name == c.name {
 			continue
 		}
 
