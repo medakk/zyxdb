@@ -25,6 +25,7 @@ func ListenAndServe(name, host string, port int) {
 	r.HandleFunc("/append-entries/", raft.Middleware(AppendEntriesHandler)).Methods("POST")
 	r.HandleFunc("/request-vote/", raft.Middleware(RequestVoteHandler)).Methods("POST")
 	r.HandleFunc("/insert/", raft.Middleware(InsertToLogHandler)).Methods("POST")
+	r.HandleFunc("/debug-get-entries/", raft.Middleware(DebugGetEntriesHandler)).Methods("POST")
 
 	// Set up logging
 	loggedRoute := handlers.LoggingHandler(os.Stderr, r)

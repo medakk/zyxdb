@@ -32,8 +32,8 @@ var (
 )
 
 type Log struct {
-	term    int
-	command string
+	Term    int    `json:"term"`
+	Command string `json:"command"`
 }
 
 type RaftCtx struct {
@@ -47,7 +47,7 @@ type RaftCtx struct {
 	// persistent state
 	currentTerm int
 	votedFor    *Node
-	log         []Log
+	entries     []Log
 
 	// volatile state on all servers
 	commitIndex int
@@ -69,15 +69,17 @@ type RaftCtx struct {
 }
 
 type AppendEntriesRequest struct {
-	Term         int      `json:"term"`
-	LeaderName   string   `json:"leader"`
-	PrevLogIndex int      `json:"prev_log_index"`
-	PrevLogTerm  int      `json:"prev_log_term"`
-	Entries      []string `json:"entries"`
-	LeaderCommit int      `json:"leader_commit"`
+	Term         int    `json:"term"`
+	LeaderName   string `json:"leader"`
+	PrevLogIndex int    `json:"prev_log_index"`
+	PrevLogTerm  int    `json:"prev_log_term"`
+	Entries      []Log  `json:"entries"`
+	LeaderCommit int    `json:"leader_commit"`
 }
 
 type AppendEntriesResponse struct {
+	Term    int  `json:"term"`
+	Success bool `json:"success"`
 }
 
 type RequestVoteRequest struct {
@@ -90,6 +92,14 @@ type RequestVoteRequest struct {
 type RequestVoteResponse struct {
 	Term        int  `json:"term"`
 	VoteGranted bool `json:"vote_granted"`
+}
+
+type InsertToLogRequest struct {
+	Command string `json:"command"`
+}
+
+type InsertToLogResponse struct {
+	Status string `json:"status"`
 }
 
 func New(name string) *RaftCtx {
@@ -105,6 +115,7 @@ func New(name string) *RaftCtx {
 		selfNode:    zyxdbConfig.getNodeByName(name),
 		state:       StateFollower,
 		config:      zyxdbConfig,
+		entries:     make([]Log, 0),
 	}
 
 	go c.runTickerEvents()
@@ -121,23 +132,34 @@ func (c *RaftCtx) Middleware(handler func(http.ResponseWriter, *http.Request, *R
 func (c *RaftCtx) AppendEntries(request AppendEntriesRequest) AppendEntriesResponse {
 	atomic.AddUint64(&c.heartbeat, 1)
 
-	response := AppendEntriesResponse{}
-
 	//TODO: Check for LastLogIndex
 	if request.Term < c.currentTerm {
-		log.Printf("False leader: %v", request.LeaderName)
-	} else {
-		log.Printf("%v is leader", request.LeaderName)
-		c.currentTerm = request.Term
-		c.votedFor = nil
-
-		// Turns out there is a new leader, and its not me.
-		if c.state != StateFollower {
-			c.state = StateFollower
+		response := AppendEntriesResponse{
+			Term:    c.currentTerm,
+			Success: false,
 		}
-		c.currentLeader = c.config.getNodeByName(request.LeaderName)
+		log.Printf("False leader: %v", request.LeaderName)
+		return response
 	}
 
+	log.Printf("%v is leader", request.LeaderName)
+	c.currentTerm = request.Term
+	c.votedFor = nil
+
+	// Turns out there is a new leader, and its not me.
+	if c.state != StateFollower {
+		c.state = StateFollower
+	}
+	c.currentLeader = c.config.getNodeByName(request.LeaderName)
+
+	for _, e := range request.Entries {
+		c.entries = append(c.entries, e)
+	}
+
+	response := AppendEntriesResponse{
+		Term:    c.currentTerm,
+		Success: true,
+	}
 	return response
 }
 
@@ -164,12 +186,40 @@ func (c *RaftCtx) RequestVote(request RequestVoteRequest) RequestVoteResponse {
 	return response
 }
 
+func (c *RaftCtx) InsertToLog(request InsertToLogRequest) InsertToLogResponse {
+	log := Log{
+		Term:    c.currentTerm,
+		Command: request.Command,
+	}
+	c.entries = append(c.entries, log)
+	for name, node := range c.config.Nodes {
+		if name != c.name {
+			request := AppendEntriesRequest{
+				Term:       c.currentTerm,
+				LeaderName: c.name,
+				Entries:    []Log{log},
+			}
+			// TODO: use goroutines
+			node.sendAppendEntries(request)
+		}
+	}
+
+	response := InsertToLogResponse{
+		Status: "ok",
+	}
+	return response
+}
+
 func (c *RaftCtx) State() NodeState {
 	return c.state
 }
 
 func (c *RaftCtx) GetLeader() *Node {
 	return c.currentLeader
+}
+
+func (c *RaftCtx) DebugGetEntries() []Log {
+	return c.entries
 }
 
 // runTickerEvents starts running time based events: the election timeout and
@@ -204,6 +254,7 @@ func (c *RaftCtx) runTickerEvents() {
 			request := AppendEntriesRequest{
 				LeaderName: c.name,
 				Term:       c.currentTerm,
+				Entries:    []Log{},
 			}
 
 			log.Printf("Sending heartbeats")

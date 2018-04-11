@@ -74,16 +74,40 @@ func PingHandler(w http.ResponseWriter, r *http.Request) {
 func InsertToLogHandler(w http.ResponseWriter, r *http.Request, raftCtx *raft.RaftCtx) {
 	if raftCtx.State() == raft.StateFollower {
 		leaderLocation := raftCtx.GetLeader().Location
-		http.Redirect(w, r, leaderLocation+"/insert/", 301)
+		http.Redirect(w, r, leaderLocation+"/insert/", http.StatusPermanentRedirect)
 		return
 	}
 
-	msg := map[string]string{
-		"msg": "Ok",
+	b, err := ioutil.ReadAll(r.Body)
+	defer r.Body.Close()
+	if err != nil {
+		// TODO: Why 500?
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
-	b, err := json.Marshal(msg)
+
+	requestData := raft.InsertToLogRequest{}
+	err = json.Unmarshal(b, &requestData)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	resp := raftCtx.InsertToLog(requestData)
+	jsonResp, err := json.Marshal(resp)
+	if err != nil {
+		panic(fmt.Sprintf("Failed to marshall raft response: %v", resp))
+	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Write(jsonResp)
+}
+
+func DebugGetEntriesHandler(w http.ResponseWriter, r *http.Request, raftCtx *raft.RaftCtx) {
+	b, err := json.Marshal(raftCtx.DebugGetEntries())
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 	w.Write(b)
 }
